@@ -5,11 +5,14 @@ module.exports = defineConfig({
   fullyParallel: false,
   workers: 1, // สำคัญ: รันทีละหน้าจอเพื่อรอคนแก้ CAPTCHA
   reporter: 'html',
+  
+  /* ยุบรวมการตั้งค่าทั้งหมดมาไว้ใน use ก้อนเดียว */
   use: {
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
     headless: false, // เปิดหน้าจอเบราว์เซอร์ให้คุณเห็น
+    screenshot: 'on',
+    trace: 'on', // บันทึกไฟล์ Trace เฉพาะตอนที่เทสต์พัง
   },
+
   projects: [
     {
       name: 'chromium',
