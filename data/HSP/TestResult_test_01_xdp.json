@@ -1,0 +1,11 @@
+{
+  "testName": "Register [HSP]: test02@gmail.com",
+  "email": "hsptest01_xdp@mailinator.com",
+  "visaType": "HSP",
+  "firstName": "Somsri",
+  "lastName": "Manee",
+  "originalEmailFromCSV": "test02@gmail.com",
+  "status": "Success",
+  "result": "PASS",
+  "timestamp": "13/05/2026, 15:37:05"
+}

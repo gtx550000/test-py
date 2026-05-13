@@ -1,0 +1,11 @@
+{
+  "testName": "Register [WP]: test03@gmail.com",
+  "email": "wptest01_egh@mailinator.com",
+  "visaType": "WP",
+  "firstName": "Alberta",
+  "lastName": "Schmitt",
+  "originalEmailFromCSV": "test03@gmail.com",
+  "status": "Success",
+  "result": "PASS",
+  "timestamp": "13/05/2026, 15:56:28"
+}

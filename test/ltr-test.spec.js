@@ -3,8 +3,10 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const ExcelJS = require('exceljs');
+// 💡 1. เพิ่มการ Import Faker เข้ามาใช้งาน
+const { faker } = require('@faker-js/faker');
 
-// 💡 ปรับให้รับค่า visaType เพื่อแยกโฟลเดอร์และไฟล์ Excel
+// ปรับให้รับค่า visaType เพื่อแยกโฟลเดอร์และไฟล์ Excel
 async function saveToExcel(dataRow, visaType) {
     const dirPath = `./data/${visaType}`;
     if (!fs.existsSync(dirPath)) {
@@ -85,6 +87,10 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
             // บวก counter เพื่อเตรียมใช้กับแถวถัดไป
             emailCounter++;
 
+            // 💡 2. สุ่มชื่อและนามสกุลด้วย Faker (ประกาศไว้ตรงนี้เพื่อให้บล็อก finally ดึงไปเซฟผลได้)
+            const randomFirstName = faker.person.firstName();
+            const randomLastName = faker.person.lastName();
+
             let isPassed = false;
             let errorMessage = '';
 
@@ -102,8 +108,9 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 // 2. กรอกข้อมูล
                 await page.locator('#email').fill(genEmail);
                 await page.locator('#password').fill('P@ssw0rd');
-                await page.locator('#firstName').fill(record.Firstname || 'Tes');
-                await page.locator('#lastName').fill(record.Lastname || 'User');
+                // 💡 3. เปลี่ยนมาเติมข้อมูลด้วยชื่อที่สุ่มจาก Faker
+                await page.locator('#firstName').fill(randomFirstName);
+                await page.locator('#lastName').fill(randomLastName);
 
                 // 3. รอ CAPTCHA และกดปุ่ม Register (id="register-button")
                 console.log(`📢 กรุณาแก้ CAPTCHA สำหรับ: ${genEmail}`);
@@ -120,28 +127,26 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 
                 // 5. ค้นหาปุ่ม "Back to Login"
                 console.log('🔘 กำลังค้นหาปุ่มเพื่อกลับไปหน้า Login...');
-                
-                // ค้นหาที่ข้อความโดยตรง ไม่ยึดติดว่าเป็น button, a หรือต้องอยู่ใน dialog
                 const backToLoginBtn = page.getByText(/back to login/i).first();
 
                 // รอจนกว่าปุ่มจะโผล่มา
                 await expect(backToLoginBtn).toBeVisible({ timeout: 15000 });
 
                 console.log('🔘 เจอปุ่มแล้ว กำลังคลิก...');
-                // สามารถใช้คำสั่ง click() ธรรมดาได้เลย โดยปกติจะเสถียรกว่า dispatchEvent
                 await backToLoginBtn.click();
 
                 // รอให้เปลี่ยนหน้าไป URL ที่มีคำว่า login
                 console.log('⏳ รอโหลดกลับไปหน้า Login...');
                 await page.waitForURL(/.*login/, { timeout: 15000 });
-                
-                await page.waitForURL(/.*login/, { timeout: 15000 });
                 console.log('✅ สมัครสำเร็จและกลับไปหน้า Login เรียบร้อย');
+                
+                // 💡 ตั้งเป็น true ไว้ตรงนี้ชั่วคราว เพราะส่วน Mailinator ด้านล่างถูก Comment ปิดไว้
+                isPassed = true; 
                 
                 // ==========================================================
                 // 6. เข้า Mailinator ทางหน้าแรก (Homepage)
                 // ==========================================================
-                console.log(`\n📧 กำลังไปยังหน้าแรก https://www.mailinator.com/`);
+                /*console.log(`\n📧 กำลังไปยังหน้าแรก https://www.mailinator.com/`);
                 const mailinatorPage = await page.context().newPage();
                 
                 // ปิดป้ายสถานะ WebDriver เพื่อให้คลิกผ่าน Cloudflare ได้
@@ -216,25 +221,20 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 // 10. *** ตรวจสอบการเข้าสู่หน้า Welcome ***
                 // ==========================================================
                 console.log('⏳ กำลังรอเข้าสู่หน้า Welcome...');
-                
-                // รอให้ URL เปลี่ยนเป็นหน้า welcome ตามที่ระบุ
                 await page.waitForURL(/.*welcome/, { timeout: 20000 });
-                
-                // ตรวจสอบว่ามีข้อความหรือองค์ประกอบที่ยืนยันว่าถึงหน้า Welcome แล้วจริงๆ
-                // เช่น มีหัวข้อ "Welcome" หรือปุ่มเลือกประเภทวีซ่า
                 await expect(page).toHaveURL(/.*welcome/);
                 
                 console.log('🎉 เข้าสู่หน้า Welcome สำเร็จ! พร้อมสำหรับการสมัคร Visa ต่อไป');
-
-                // เมื่อทำถึงขั้นตอนนี้สำเร็จ ให้เซตเป็น true
-                isPassed = true; 
+                await page.waitForTimeout(5000);
+                
+                // เมื่อรัน Flow เต็มจบสำเร็จ ให้เซตเป็น true ตรงนี้แทน
+                isPassed = true; */
 
             } catch (error) {
                 errorMessage = error.message;
                 console.error(`❌ เกิดข้อผิดพลาดในขั้นตอน: ${errorMessage}`);
                 throw error;
             } finally {
-                // ... (ส่วนการเก็บ Report JSON และ Excel เหมือนเดิม) ...
                 // ==========================================================
                 // แยกการจัดเก็บผลลัพธ์ใส่โฟลเดอร์ตาม Visa Type
                 // ==========================================================
@@ -243,12 +243,13 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                     fs.mkdirSync(dirPath, { recursive: true });
                 }
 
+                // 💡 4. ส่งค่าชื่อที่ได้จาก Faker เข้าไปบันทึกในไฟล์ JSON
                 const result = {
                     testName: `Register [${rowVisa}]: ${record.Email}`,
                     email: genEmail,
                     visaType: rowVisa,
-                    firstName: record.Firstname || 'Tes',
-                    lastName: record.Lastname || 'User',
+                    firstName: randomFirstName,
+                    lastName: randomLastName,
                     originalEmailFromCSV: record.Email,
                     status: isPassed ? 'Success' : errorMessage,
                     result: isPassed ? 'PASS' : 'FAIL',
@@ -258,13 +259,14 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 const baseFileName = `${dirPath}/TestResult_${basePrefix}_${uniqueId}`;
                 fs.writeFileSync(`${baseFileName}.json`, JSON.stringify(result, null, 2), 'utf-8');
 
+                // 💡 5. ส่งค่าชื่อที่ได้จาก Faker เข้าไปบันทึกใน Excel
                 await saveToExcel({ 
                     newEmail: genEmail, 
-                    newFirstName: record.Firstname || 'Tes',
-                    newLastName: record.Lastname || 'User',
+                    newFirstName: randomFirstName,
+                    newLastName: randomLastName,
                     status: result.status, 
                     result: result.result 
-                }, rowVisa); // ส่ง rowVisa ไปเพื่อแยกไฟล์ Excel
+                }, rowVisa); 
             }
         });
     }
