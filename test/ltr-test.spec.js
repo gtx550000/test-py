@@ -14,12 +14,14 @@ async function saveToExcel(dataRow) {
             sheet = workbook.getWorksheet('Results');
         } else {
             sheet = workbook.addWorksheet('Results');
-            sheet.columns = [
-                { header: 'Timestamp', key: 'timestamp', width: 25 },
-                { header: 'Generated Email', key: 'newEmail', width: 40 },
-                { header: 'Status', key: 'status', width: 30 },
-                { header: 'Result', key: 'result', width: 15 }
-            ];
+           sheet.columns = [
+            { header: 'Timestamp', key: 'timestamp', width: 25 },
+            { header: 'Generated Email', key: 'newEmail', width: 40 },
+            { header: 'First Name', key: 'newFirstName', width: 20 },
+            { header: 'Last Name', key: 'newLastName', width: 20 },
+            { header: 'Status', key: 'status', width: 30 },
+            { header: 'Result', key: 'result', width: 15 }
+        ];
         }
         sheet.addRow({
             timestamp: new Date().toLocaleString(),
@@ -70,7 +72,7 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 // 2. กรอกข้อมูล
                 await page.locator('#email').fill(genEmail);
                 await page.locator('#password').fill('P@ssw0rd');
-                await page.locator('#firstName').fill(record.Firstname || 'Test');
+                await page.locator('#firstName').fill(record.Firstname || 'Tes');
                 await page.locator('#lastName').fill(record.Lastname || 'User');
 
                 // 3. รอ CAPTCHA และกดปุ่ม Register (id="register-button")
@@ -82,22 +84,41 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 console.log('🔘 CAPTCHA เรียบร้อย! กำลังกดปุ่ม Register...');
                 await submitBtn.click();
 
-                // 4. *** ส่วนที่เพิ่มเติม: จัดการ Popup หลังสมัครสำเร็จ ***
+                // 4. *** จัดการ Popup หลังสมัครสำเร็จ ***
                 console.log('⏳ รอ Success Popup ปรากฏ...');
-                // รอให้เห็นข้อความแจ้งเตือนความสำเร็จก่อน
-                await expect(page.getByText(/check your email/i)).toBeVisible({ timeout: 30000 });
+                await expect(page.getByText(/thanks for signing up/i)).toBeVisible({ timeout: 30000 });
+                await page.waitForTimeout(1500); // รอให้ Modal นิ่ง
                 
-                // 5. กดปุ่ม Back to Login ใน Popup
-                console.log('🔘 Clicking "Back to Login" button in popup...');
-                const backToLoginBtn = page.locator('#ant-btn-lg');
-                await expect(backToLoginBtn).toBeVisible();
+                // 5. ค้นหาปุ่ม "Back to Login" ในกล่อง ant-modal-content
+                console.log('🔘 กำลังค้นหาปุ่มใน Modal...');
+                
+                const dialog = page.locator('dialog, [role="dialog"]').last();
+                const backToLoginBtn = dialog.getByRole('button', { name: /back to login/i });
+
+                // รอให้ปุ่มปรากฏขึ้นมาบนหน้าจอก่อน
+                await expect(backToLoginBtn).toBeVisible({ timeout: 15000 });
+
+                // 💡 บังคับคลิกทันที (Force Click) เพื่อข้ามปัญหา Element is not stable
+                console.log('🔘 กำลังบังคับคลิกปุ่ม Back to Login...');
                 await backToLoginBtn.click({ force: true });
 
-                // ยืนยันว่ากลับมาหน้า Login สำเร็จ (ตรวจสอบจาก URL หรือปุ่ม Login)
-                await expect(page).toHaveURL(/.*login/);
+                // 1. Wait for Ant Design animation to fully settle
+                await expect(backToLoginBtn).toBeEnabled({ timeout: 15000 });
+                // Replace this:
+                await backToLoginBtn.waitFor({ state: 'visible', timeout: 10000 });
+                await backToLoginBtn.evaluate(el => el.click());
+
+                // With this:
+                await expect(backToLoginBtn).toBeEnabled({ timeout: 19000 });
+                await backToLoginBtn.click(); // Playwright's .click() auto-retries until the element is truly interactable
+                
+                // ยืนยันการกลับไปหน้า Login
+                console.log('⏳ รอโหลดกลับไปหน้า Login...');
+                await page.waitForURL(/.*login/, { timeout: 15000 });
                 
                 isPassed = true; 
                 console.log('✅ สมัครสำเร็จและกลับไปหน้า Login เรียบร้อย');
+                
 
             } catch (error) {
                 errorMessage = error.message;
@@ -120,7 +141,7 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                     newEmail: genEmail, 
                     newFirstName: record.Firstname || 'Test',
                     newLastName: record.Lastname || 'User',
-                    status: isPassed ? 'Success' : errorMessage, 
+                    //status: isPassed ? 'Success' : errorMessage, 
                     result: isPassed ? 'PASS' : 'FAIL' 
                 });
             }
