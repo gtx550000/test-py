@@ -1,0 +1,11 @@
+{
+  "testName": "Register [WGC]: test01@gmail.com",
+  "email": "wgctest01_5bq@mailinator.com",
+  "visaType": "WGC",
+  "firstName": "Bert",
+  "lastName": "Bosco",
+  "originalEmailFromCSV": "test01@gmail.com",
+  "status": "Success",
+  "result": "PASS",
+  "timestamp": "13/05/2026, 17:29:57"
+}
