@@ -1,2 +1,5 @@
-Email,Subject,Firstname,Lastname
-testuser@gmail.com,Register,Somchai,Jaidee
+Email,Subject,Firstname,Lastname,VisaType
+test01@gmail.com,Register,Somchai,Jaidee,wgc
+test02@gmail.com,Register,Somsri,Manee,hsp
+test03@gmail.com,Register,Kira,Leo,wp
+

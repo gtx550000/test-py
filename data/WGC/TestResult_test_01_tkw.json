@@ -1,0 +1,11 @@
+{
+  "testName": "Register [WGC]: test01@gmail.com",
+  "email": "wgctest01_tkw@mailinator.com",
+  "visaType": "WGC",
+  "firstName": "Somchai",
+  "lastName": "Jaidee",
+  "originalEmailFromCSV": "test01@gmail.com",
+  "status": "page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+  "result": "FAIL",
+  "timestamp": "13/05/2026, 15:14:30"
+}

@@ -4,8 +4,14 @@ const fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const ExcelJS = require('exceljs');
 
-async function saveToExcel(dataRow) {
-    const fileName = 'Test_Report_LTR.xlsx';
+// 💡 ปรับให้รับค่า visaType เพื่อแยกโฟลเดอร์และไฟล์ Excel
+async function saveToExcel(dataRow, visaType) {
+    const dirPath = `./data/${visaType}`;
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+
+    const fileName = `${dirPath}/Test_Report_${visaType}.xlsx`;
     const workbook = new ExcelJS.Workbook();
     let sheet;
     try {
@@ -14,17 +20,17 @@ async function saveToExcel(dataRow) {
             sheet = workbook.getWorksheet('Results');
         } else {
             sheet = workbook.addWorksheet('Results');
-           sheet.columns = [
-            { header: 'Timestamp', key: 'timestamp', width: 25 },
-            { header: 'Generated Email', key: 'newEmail', width: 40 },
-            { header: 'First Name', key: 'newFirstName', width: 20 },
-            { header: 'Last Name', key: 'newLastName', width: 20 },
-            { header: 'Status', key: 'status', width: 30 },
-            { header: 'Result', key: 'result', width: 15 }
-        ];
+            sheet.columns = [
+                { header: 'Timestamp', key: 'timestamp', width: 25 },
+                { header: 'Generated Email', key: 'newEmail', width: 40 },
+                { header: 'First Name', key: 'newFirstName', width: 20 },
+                { header: 'Last Name', key: 'newLastName', width: 20 },
+                { header: 'Status', key: 'status', width: 30 },
+                { header: 'Result', key: 'result', width: 15 }
+            ];
         }
         sheet.addRow({
-            timestamp: new Date().toLocaleString(),
+            timestamp: new Date().toLocaleString('en-GB'),
             newEmail: dataRow.newEmail,
             newFirstName: dataRow.newFirstName,
             newLastName: dataRow.newLastName,
@@ -43,17 +49,41 @@ const records = parse(fs.readFileSync('./data/TT - ชีต.csv'), {
     relax_column_count: true 
 });
 
+// ประกาศตัวแปรนับเลขไว้นอกลูป (สำหรับ Auto-Increment)
+let emailCounter = 1;
+
 test.describe('LTR Visa Semi-Auto Flow', () => {
-    for (const record of records) {
+    const targetVisa = process.env.TARGET_VISA || 'ALL'; 
+     
+     for (const record of records) {
+        // ดึงประเภท Visa ถ้าไม่มีให้เป็น LTR
+        const rowVisa = (record.VisaType || 'LTR').toUpperCase();
+
+        // ข้ามแถวที่ประเภท Visa ไม่ตรงกับที่เลือก
+        if (targetVisa !== 'ALL' && rowVisa !== targetVisa) {
+            continue; 
+        }
+
         if (!record.Email || record.Email.trim() === "" || record.Subject !== 'Register') {
             continue;
         }
 
-        test(`Register: ${record.Email}`, async ({ page }) => {
+        test(`Register [${rowVisa}]: ${record.Email}`, async ({ page }) => {
             test.setTimeout(0); 
-            const uniqueId = Date.now();
-            const prefix = record.Email.split('@')[0];
-            const genEmail = `${prefix}_${uniqueId}@mailinator.com`;
+            
+            // ==========================================================
+            // สร้างอีเมลแบบลูกครึ่ง (Auto-Increment + Random 3 chars)
+            // ==========================================================
+            const paddedNum = String(emailCounter).padStart(2, '0');
+            const basePrefix = record.Email.split('@')[0].replace(/[0-9]/g, ''); 
+            const visaTypeStr = rowVisa.toLowerCase();
+            const randomStr = Math.random().toString(36).substring(2, 5);
+            const uniqueId = `${paddedNum}_${randomStr}`;
+
+            const genEmail = `${visaTypeStr}${basePrefix}${uniqueId}@mailinator.com`;
+            
+            // บวก counter เพื่อเตรียมใช้กับแถวถัดไป
+            emailCounter++;
 
             let isPassed = false;
             let errorMessage = '';
@@ -79,74 +109,52 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 console.log(`📢 กรุณาแก้ CAPTCHA สำหรับ: ${genEmail}`);
                 const submitBtn = page.locator('#register-button');
                 
-                // รอจนกว่าปุ่มจะ Enabled (หลังจากแก้ CAPTCHA เสร็จ)
                 await expect(submitBtn).toBeEnabled({ timeout: 150000 });
                 console.log('🔘 CAPTCHA เรียบร้อย! กำลังกดปุ่ม Register...');
                 await submitBtn.click();
 
-                // 4. *** จัดการ Popup หลังสมัครสำเร็จ ***
+                // 4. จัดการ Popup หลังสมัครสำเร็จ
                 console.log('⏳ รอ Success Popup ปรากฏ...');
                 await expect(page.getByText(/thanks for signing up/i)).toBeVisible({ timeout: 30000 });
-                
-                // ให้เวลาเว็บโหลด Modal ให้นิ่งที่สุด
                 await page.waitForTimeout(2000); 
                 
                 // 5. ค้นหาปุ่ม "Back to Login"
-                console.log('🔘 กำลังค้นหาปุ่มใน Modal...');
-                const dialog = page.locator('dialog, [role="dialog"]').last();
-                const backToLoginBtn = dialog.getByRole('button', { name: /back to login/i });
+                console.log('🔘 กำลังค้นหาปุ่มเพื่อกลับไปหน้า Login...');
+                
+                // ค้นหาที่ข้อความโดยตรง ไม่ยึดติดว่าเป็น button, a หรือต้องอยู่ใน dialog
+                const backToLoginBtn = page.getByText(/back to login/i).first();
 
-                // รอจนกว่าปุ่มจะปรากฏ
+                // รอจนกว่าปุ่มจะโผล่มา
                 await expect(backToLoginBtn).toBeVisible({ timeout: 15000 });
 
-                // 💡 ยิง Event Click ไปที่ปุ่ม
-                console.log('🔘 กำลังยิง Event Click ไปที่ปุ่ม...');
-                try {
-                    await backToLoginBtn.dispatchEvent('click');
-                } catch (err) {
-                    console.log('⚠️ dispatchEvent ไม่สำเร็จ กำลังลองใช้วิธีที่ 2: คีย์บอร์ด...');
-                    await backToLoginBtn.focus();
-                    await page.keyboard.press('Enter');
-                }
+                console.log('🔘 เจอปุ่มแล้ว กำลังคลิก...');
+                // สามารถใช้คำสั่ง click() ธรรมดาได้เลย โดยปกติจะเสถียรกว่า dispatchEvent
+                await backToLoginBtn.click();
 
-                // รอให้ Modal ปิดลง (เป็นการยืนยันว่ากดติดแล้ว)
-                await expect(dialog).toBeHidden({ timeout: 10000 });
-
-                // ยืนยันการกลับไปหน้า Login
+                // รอให้เปลี่ยนหน้าไป URL ที่มีคำว่า login
                 console.log('⏳ รอโหลดกลับไปหน้า Login...');
                 await page.waitForURL(/.*login/, { timeout: 15000 });
                 
-                isPassed = true; 
+                await page.waitForURL(/.*login/, { timeout: 15000 });
                 console.log('✅ สมัครสำเร็จและกลับไปหน้า Login เรียบร้อย');
                 
                 // ==========================================================
-                // 6. *** เข้า Mailinator ทางหน้าแรก (Homepage) ***
+                // 6. เข้า Mailinator ทางหน้าแรก (Homepage)
                 // ==========================================================
                 console.log(`\n📧 กำลังไปยังหน้าแรก https://www.mailinator.com/`);
-
                 const mailinatorPage = await page.context().newPage();
                 
-                // 💡 ปิดป้ายสถานะ WebDriver เพื่อให้คลิกผ่าน Cloudflare ได้
+                // ปิดป้ายสถานะ WebDriver เพื่อให้คลิกผ่าน Cloudflare ได้
                 await mailinatorPage.addInitScript(() => {
                     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
                 });
 
-                // เข้าหน้าแรกของ Mailinator
                 await mailinatorPage.goto('https://www.mailinator.com/', { waitUntil: 'domcontentloaded' });
-
                 console.log('🚧 ตรวจสอบ Cloudflare... (หากติดหน้าติ๊กถูก กรุณากดด้วยตนเอง มีเวลารอ 2 นาที)');
-
-                // -------------------------------------------------------------
-                // 💡 จุดสำคัญ: บอทจะรอจนกว่า "ช่องค้นหาอีเมล" จะปรากฏขึ้นมา
-                // (ถ้าติด Cloudflare หน้าจอจะไม่มีช่องค้นหา บอทก็จะรอไปเรื่อยๆ จนกว่าคุณจะกดผ่าน)
-                // -------------------------------------------------------------
                 
-                // ค้นหาช่องกรอกข้อมูล (รองรับทั้งมือถือและคอม)
                 const searchInput = mailinatorPage.locator('input[placeholder*="Search"], #search, #search-mobile').first();
-                
-                // รอให้ช่องค้นหาโผล่มา (ให้เวลาคนแก้ 120 วินาที)
                 await searchInput.waitFor({ state: 'visible', timeout: 120000 });
-                console.log('✅ เข้าหน้าแรกสำเร็จ! กำลังกรอกชื่ออีเมลค้นหา...');
+                console.log('✅ เข้าหน้าแรกสำเร็จ! กำลังกรอกอีเมลค้นหา...');
 
                 // 7. พิมพ์ชื่อ Inbox แล้วกด Enter
                 const inboxName = genEmail.split('@')[0];
@@ -154,60 +162,109 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 await searchInput.press('Enter');
 
                 // ==========================================================
-                // 8. *** รอรับอีเมลและดึงลิงก์ ***
+                // 8. รอรับอีเมลและดึงลิงก์ (ใช้ toPass)
                 // ==========================================================
                 console.log('⏳ รออีเมลยืนยันส่งเข้ามา...');
-                
-                // ค้นหาตารางอีเมลที่แสดงขึ้นมาใหม่
                 const emailRow = mailinatorPage.locator('table tbody tr').filter({ hasText: /verify|register|LTR/i }).first();
                 await emailRow.waitFor({ state: 'visible', timeout: 30000 });
-                
                 console.log('🔘 เจออีเมลแล้ว กำลังคลิกเปิดอ่าน...');
                 await emailRow.click();
 
-                // เข้าไปดึงลิงก์ใน Iframe ของเนื้อหาอีเมล
                 console.log('🔍 กำลังดึงลิงก์ยืนยัน...');
-                const emailFrame = mailinatorPage.frameLocator('#html_msg_body');
-                const verifyBtn = emailFrame.getByRole('link', { name: /verify/i }).first(); 
-                
-                await verifyBtn.waitFor({ state: 'visible', timeout: 15000 });
-                const verifyUrl = await verifyBtn.getAttribute('href');
-                console.log(`🔗 ได้ลิงก์ยืนยันแล้ว: ${verifyUrl}`);
+                let verifyUrl = '';
 
-                // ปิดหน้า Mailinator 
+                // ลองทำซ้ำจนกว่าจะหาปุ่มและดึงลิงก์สำเร็จ (สูงสุด 60 วินาที)
+                await expect(async () => {
+                    const emailFrame = mailinatorPage.frameLocator('#html_msg_body');
+                    const verifyBtn = emailFrame.getByRole('link', { name: /verify/i }).first(); 
+                    await expect(verifyBtn).toBeVisible({ timeout: 5000 });
+                    verifyUrl = await verifyBtn.getAttribute('href');
+                    expect(verifyUrl).toBeTruthy(); 
+                }).toPass({ timeout: 60000 });
+
+                console.log(`🔗 ได้ลิงก์ยืนยันแล้ว: ${verifyUrl}`);
                 await mailinatorPage.close(); 
 
-                // นำลิงก์ไปเปิดในหน้าหลักเพื่อ Login ต่อ...
-                await page.goto(verifyUrl);
-                // ... (รอกรอกรหัสผ่านเพื่อ Login ตามปกติ)
+                // ==========================================================
+                // 9. *** ขั้นตอนที่ 3: เปิดลิงก์ยืนยันและ Login เข้าสู่ระบบ ***
+                // ==========================================================
+                console.log('⏳ กำลังเปิดลิงก์ยืนยันในหน้าหลัก...');
+                await page.goto(verifyUrl, { waitUntil: 'networkidle' });
+
+                // ค้นหาปุ่ม "Go to Login" หลังจากหน้า Verify โหลดเสร็จ
+                console.log('🔘 กำลังค้นหาปุ่ม "Go to Login"...');
+                const goToLoginBtn = page.getByRole('button', { name: /go to login/i }).first();
                 
-               
-              
+                // รอให้ปุ่มปรากฏและคลิก
+                await expect(goToLoginBtn).toBeVisible({ timeout: 15000 });
+                await goToLoginBtn.click();
+
+                // รอให้เปลี่ยนเส้นทางกลับมาหน้า Login
+                console.log('⏳ รอโหลดหน้า Login...');
+                await page.waitForURL(/.*login/, { timeout: 15000 });
+
+                // กรอก Email และ Password ที่เราเพิ่งสมัครและ Verified ผ่าน
+                console.log(`🔐 กำลัง Login ด้วย: ${genEmail}`);
+                await page.locator('#email').fill(genEmail);
+                await page.locator('#password').fill('P@ssw0rd'); 
+
+                // กดปุ่ม Login (ตรวจสอบตัวเลือกปุ่มให้ตรงกับหน้างานจริง)
+                const loginSubmitBtn = page.getByRole('button', { name: /login/i }).first();
+                await loginSubmitBtn.click();
+
+                // ==========================================================
+                // 10. *** ตรวจสอบการเข้าสู่หน้า Welcome ***
+                // ==========================================================
+                console.log('⏳ กำลังรอเข้าสู่หน้า Welcome...');
+                
+                // รอให้ URL เปลี่ยนเป็นหน้า welcome ตามที่ระบุ
+                await page.waitForURL(/.*welcome/, { timeout: 20000 });
+                
+                // ตรวจสอบว่ามีข้อความหรือองค์ประกอบที่ยืนยันว่าถึงหน้า Welcome แล้วจริงๆ
+                // เช่น มีหัวข้อ "Welcome" หรือปุ่มเลือกประเภทวีซ่า
+                await expect(page).toHaveURL(/.*welcome/);
+                
+                console.log('🎉 เข้าสู่หน้า Welcome สำเร็จ! พร้อมสำหรับการสมัคร Visa ต่อไป');
+
+                // เมื่อทำถึงขั้นตอนนี้สำเร็จ ให้เซตเป็น true
+                isPassed = true; 
 
             } catch (error) {
                 errorMessage = error.message;
+                console.error(`❌ เกิดข้อผิดพลาดในขั้นตอน: ${errorMessage}`);
                 throw error;
             } finally {
-                // บันทึกผลลงทั้ง Excel และ JSON ในโฟลเดอร์ data
+                // ... (ส่วนการเก็บ Report JSON และ Excel เหมือนเดิม) ...
+                // ==========================================================
+                // แยกการจัดเก็บผลลัพธ์ใส่โฟลเดอร์ตาม Visa Type
+                // ==========================================================
+                const dirPath = `data/${rowVisa}`;
+                if (!fs.existsSync(dirPath)) {
+                    fs.mkdirSync(dirPath, { recursive: true });
+                }
+
                 const result = {
-                    testName: `Register: ${record.Email}`,
+                    testName: `Register [${rowVisa}]: ${record.Email}`,
                     email: genEmail,
+                    visaType: rowVisa,
+                    firstName: record.Firstname || 'Tes',
+                    lastName: record.Lastname || 'User',
+                    originalEmailFromCSV: record.Email,
                     status: isPassed ? 'Success' : errorMessage,
                     result: isPassed ? 'PASS' : 'FAIL',
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toLocaleString('en-GB')
                 };
 
-                fs.mkdirSync('data', { recursive: true });
-                const baseFileName = `data/TestResult_${prefix}_${uniqueId}`;
+                const baseFileName = `${dirPath}/TestResult_${basePrefix}_${uniqueId}`;
                 fs.writeFileSync(`${baseFileName}.json`, JSON.stringify(result, null, 2), 'utf-8');
 
                 await saveToExcel({ 
                     newEmail: genEmail, 
-                    newFirstName: record.Firstname || 'Test',
+                    newFirstName: record.Firstname || 'Tes',
                     newLastName: record.Lastname || 'User',
-                    //status: isPassed ? 'Success' : errorMessage, 
-                    result: isPassed ? 'PASS' : 'FAIL' 
-                });
+                    status: result.status, 
+                    result: result.result 
+                }, rowVisa); // ส่ง rowVisa ไปเพื่อแยกไฟล์ Excel
             }
         });
     }
