@@ -11,6 +11,11 @@ module.exports = defineConfig({
     headless: false, // เปิดหน้าจอเบราว์เซอร์ให้คุณเห็น
     screenshot: 'on',
     trace: 'on', // บันทึกไฟล์ Trace เฉพาะตอนที่เทสต์พัง
+    launchOptions: {
+      args: [
+        '--disable-blink-features=AutomationControlled' // ปิดป้ายบอกสถานะ Bot
+      ]
+    }
   },
 
   projects: [

@@ -118,9 +118,71 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 
                 isPassed = true; 
                 console.log('✅ สมัครสำเร็จและกลับไปหน้า Login เรียบร้อย');
+                
+                // ==========================================================
+                // 6. *** เข้า Mailinator ทางหน้าแรก (Homepage) ***
+                // ==========================================================
+                console.log(`\n📧 กำลังไปยังหน้าแรก https://www.mailinator.com/`);
 
+                const mailinatorPage = await page.context().newPage();
                 
+                // 💡 ปิดป้ายสถานะ WebDriver เพื่อให้คลิกผ่าน Cloudflare ได้
+                await mailinatorPage.addInitScript(() => {
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                });
+
+                // เข้าหน้าแรกของ Mailinator
+                await mailinatorPage.goto('https://www.mailinator.com/', { waitUntil: 'domcontentloaded' });
+
+                console.log('🚧 ตรวจสอบ Cloudflare... (หากติดหน้าติ๊กถูก กรุณากดด้วยตนเอง มีเวลารอ 2 นาที)');
+
+                // -------------------------------------------------------------
+                // 💡 จุดสำคัญ: บอทจะรอจนกว่า "ช่องค้นหาอีเมล" จะปรากฏขึ้นมา
+                // (ถ้าติด Cloudflare หน้าจอจะไม่มีช่องค้นหา บอทก็จะรอไปเรื่อยๆ จนกว่าคุณจะกดผ่าน)
+                // -------------------------------------------------------------
                 
+                // ค้นหาช่องกรอกข้อมูล (รองรับทั้งมือถือและคอม)
+                const searchInput = mailinatorPage.locator('input[placeholder*="Search"], #search, #search-mobile').first();
+                
+                // รอให้ช่องค้นหาโผล่มา (ให้เวลาคนแก้ 120 วินาที)
+                await searchInput.waitFor({ state: 'visible', timeout: 120000 });
+                console.log('✅ เข้าหน้าแรกสำเร็จ! กำลังกรอกชื่ออีเมลค้นหา...');
+
+                // 7. พิมพ์ชื่อ Inbox แล้วกด Enter
+                const inboxName = genEmail.split('@')[0];
+                await searchInput.fill(inboxName);
+                await searchInput.press('Enter');
+
+                // ==========================================================
+                // 8. *** รอรับอีเมลและดึงลิงก์ ***
+                // ==========================================================
+                console.log('⏳ รออีเมลยืนยันส่งเข้ามา...');
+                
+                // ค้นหาตารางอีเมลที่แสดงขึ้นมาใหม่
+                const emailRow = mailinatorPage.locator('table tbody tr').filter({ hasText: /verify|register|LTR/i }).first();
+                await emailRow.waitFor({ state: 'visible', timeout: 30000 });
+                
+                console.log('🔘 เจออีเมลแล้ว กำลังคลิกเปิดอ่าน...');
+                await emailRow.click();
+
+                // เข้าไปดึงลิงก์ใน Iframe ของเนื้อหาอีเมล
+                console.log('🔍 กำลังดึงลิงก์ยืนยัน...');
+                const emailFrame = mailinatorPage.frameLocator('#html_msg_body');
+                const verifyBtn = emailFrame.getByRole('link', { name: /verify/i }).first(); 
+                
+                await verifyBtn.waitFor({ state: 'visible', timeout: 15000 });
+                const verifyUrl = await verifyBtn.getAttribute('href');
+                console.log(`🔗 ได้ลิงก์ยืนยันแล้ว: ${verifyUrl}`);
+
+                // ปิดหน้า Mailinator 
+                await mailinatorPage.close(); 
+
+                // นำลิงก์ไปเปิดในหน้าหลักเพื่อ Login ต่อ...
+                await page.goto(verifyUrl);
+                // ... (รอกรอกรหัสผ่านเพื่อ Login ตามปกติ)
+                
+               
+              
 
             } catch (error) {
                 errorMessage = error.message;
