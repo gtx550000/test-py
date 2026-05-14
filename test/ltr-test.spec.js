@@ -146,7 +146,7 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 // ==========================================================
                 // 6. เข้า Mailinator ทางหน้าแรก (Homepage)
                 // ==========================================================
-                /*console.log(`\n📧 กำลังไปยังหน้าแรก https://www.mailinator.com/`);
+                console.log(`\n📧 กำลังไปยังหน้าแรก https://www.mailinator.com/`);
                 const mailinatorPage = await page.context().newPage();
                 
                 // ปิดป้ายสถานะ WebDriver เพื่อให้คลิกผ่าน Cloudflare ได้
@@ -228,7 +228,7 @@ test.describe('LTR Visa Semi-Auto Flow', () => {
                 await page.waitForTimeout(5000);
                 
                 // เมื่อรัน Flow เต็มจบสำเร็จ ให้เซตเป็น true ตรงนี้แทน
-                isPassed = true; */
+                isPassed = true; 
 
             } catch (error) {
                 errorMessage = error.message;

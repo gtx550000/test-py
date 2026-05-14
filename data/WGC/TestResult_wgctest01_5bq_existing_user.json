@@ -2,10 +2,10 @@
   "testName": "Register [WGC]: test01@gmail.com",
   "email": "wgctest01_5bq@mailinator.com",
   "visaType": "WGC",
-  "firstName": "Bert",
-  "lastName": "Bosco",
+  "firstName": "Alexander",
+  "lastName": "West",
   "originalEmailFromCSV": "test01@gmail.com",
-  "status": "Success",
-  "result": "PASS",
-  "timestamp": "13/05/2026, 17:29:57"
+  "status": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/thanks for signing up/i)\nExpected: visible\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/thanks for signing up/i)\u001b[22m\n",
+  "result": "FAIL",
+  "timestamp": "14/05/2026, 09:00:53"
 }
