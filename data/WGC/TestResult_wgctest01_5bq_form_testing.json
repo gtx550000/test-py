@@ -2,9 +2,9 @@
   "testName": "Register [WGC]: test01@gmail.com",
   "email": "wgctest01_5bq@mailinator.com",
   "visaType": "WGC",
-  "firstName": "Bailee",
-  "lastName": "Lehner",
-  "status": "Success",
-  "result": "PASS",
-  "timestamp": "19/05/2026, 10:24:16"
+  "firstName": "Maurice",
+  "lastName": "Ritchie",
+  "status": "page.waitForTimeout: Test ended.",
+  "result": "FAIL",
+  "timestamp": "19/05/2026, 16:33:26"
 }

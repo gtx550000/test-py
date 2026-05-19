@@ -111,6 +111,9 @@ test.describe('WGC Visa Flow', () => {
                 // ระบุชื่อไฟล์รูป Passport ที่อยู่ในโฟลเดอร์ data/uploads/passport/
                 await wgcForm.uploadPassportStep1('Passport-2.png');
                 // ==========================================================
+                
+                // 💡 เรียกใช้ฟังก์ชัน Step 2 (บอทจะอ่านเพศจากหน้าจออัตโนมัติแล้วเลือกคำนำหน้าให้)
+                await wgcForm.fillPersonalInformationStep2();
 
                 // ให้หน้าจอค้างไว้ให้เราดูผลงาน
                 await page.waitForTimeout(50000); 
