@@ -6,7 +6,7 @@ const ExcelJS = require('exceljs');
 const { faker } = require('@faker-js/faker');
 
 // 💡 ดึงหน้า WGC Form ที่เราแยกไฟล์ไว้ออกมาใช้งาน
-const WgcFormPage = require('../pages/WgcFormPage'); 
+const Qualification_wgc = require('../pages/Qualification_wgc'); 
 
 // ... (ฟังก์ชัน saveToExcel เหมือนเดิม) ...
 async function saveToExcel(dataRow, visaType) {
@@ -106,7 +106,7 @@ test.describe('WGC Visa Flow', () => {
                 // ==========================================================
                 // 💡 เรียกใช้ Class WgcFormPage ที่เราแยกไฟล์ไว้
                 // ==========================================================
-                const wgcForm = new WgcFormPage(page);
+                const wgcForm = new Qualification_wgc(page);
 
                 // ระบุชื่อไฟล์รูป Passport ที่อยู่ในโฟลเดอร์ data/uploads/passport/
                 await wgcForm.uploadPassportStep1('Passport-2.png');
