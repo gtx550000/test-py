@@ -5,8 +5,12 @@ const { parse } = require('csv-parse/sync');
 const ExcelJS = require('exceljs');
 const { faker } = require('@faker-js/faker');
 
-// 💡 ดึงหน้า WGC Form ที่เราแยกไฟล์ไว้ออกมาใช้งาน
-const Qualification_wgc = require('../pages/Qualification_wgc'); 
+// 💡 นำเข้าคลาสที่แยกเป็น 3 ขั้นตอน (ปรับ Path ให้ชี้ไปที่ pages/ ตรงๆ)
+const WgcStep1_OCR = require('../pages_wgc/WgcStep1_OCR');
+const WgcStep2_PersonalInfo = require('../pages_wgc/WgcStep2_PersonalInfo');
+const WgcStep3_Income = require('../pages_wgc/WgcStep3_Income');
+const WgcStep4_Health_Insurance = require('../pages_wgc/WgcStep4_Health_Insurance'); 
+const WgcStep5_Review = require('../pages_wgc/WgcStep5_Review');
 
 // ... (ฟังก์ชัน saveToExcel เหมือนเดิม) ...
 async function saveToExcel(dataRow, visaType) {
@@ -57,10 +61,13 @@ test.describe('WGC Visa Flow', () => {
         test(`Register & Create Profile [WGC]: ${record.Email}`, async ({ page }) => {
             test.setTimeout(0); 
             
-            // 💡 ล็อคอีเมลไว้เพื่อทดสอบฟอร์มโดยเฉพาะ
-            const genEmail = 'wgctest01_5bq@mailinator.com'; 
-            const basePrefix = genEmail.split('@')[0];
-            const uniqueId = 'form_testing';
+            // ==========================================================
+            // 💡 ดึงอีเมลและสร้างรหัสอ้างอิงจากไฟล์ CSV แบบไดนามิก
+            // ==========================================================
+             const genEmail = 'wgctest01_5bq@mailinator.com'; // (คอมเมนต์แบบล็อกอีเมลไว้)
+            //const genEmail = record.Email; 
+            const basePrefix = genEmail.split('@')[0].replace(/[0-9]/g, '');
+            const uniqueId = Math.random().toString(36).substring(2, 7);
 
             const randomFirstName = faker.person.firstName();
             const randomLastName = faker.person.lastName();
@@ -92,8 +99,6 @@ test.describe('WGC Visa Flow', () => {
                     throw timeoutError; 
                 }
 
-                await page.waitForURL(/.*welcome/, { timeout: 20000 });
-                
                 // เข้าสู่หน้า WGC Application
                 await page.getByText('Wealthy Global Citizen', { exact: true }).click();
                 const applyBtn = page.getByRole('button', { name: /Apply Application/i });
@@ -104,19 +109,36 @@ test.describe('WGC Visa Flow', () => {
                 console.log('🚀 เข้าสู่หน้า Application Form สำเร็จ!');
 
                 // ==========================================================
-                // 💡 เรียกใช้ Class WgcFormPage ที่เราแยกไฟล์ไว้
+                // 💡 เรียกใช้งาน Step 1: อัปโหลด Passport และสุ่มข้อมูล
                 // ==========================================================
-                const wgcForm = new Qualification_wgc(page);
-
-                // ระบุชื่อไฟล์รูป Passport ที่อยู่ในโฟลเดอร์ data/uploads/passport/
-                await wgcForm.uploadPassportStep1('Passport-2.png');
-                // ==========================================================
+                const step1 = new WgcStep1_OCR(page);
+                const generatedData = await step1.uploadPassportStep1('Passport-2.png');
                 
-                // 💡 เรียกใช้ฟังก์ชัน Step 2 (บอทจะอ่านเพศจากหน้าจออัตโนมัติแล้วเลือกคำนำหน้าให้)
-                await wgcForm.fillPersonalInformationStep2();
+                // ==========================================================
+                // 💡 เรียกใช้งาน Step 2: กรอกข้อมูลส่วนตัว (ส่ง generatedData ไปด้วย)
+                // ==========================================================
+                const step2 = new WgcStep2_PersonalInfo(page, generatedData);
+                await step2.fillPersonalInformationStep2();
 
-                // ให้หน้าจอค้างไว้ให้เราดูผลงาน
-                await page.waitForTimeout(50000); 
+                // ==========================================================
+                // 💡 เรียกใช้งาน Step 3: กรอกรายได้และสินทรัพย์
+                // ==========================================================
+                const step3 = new WgcStep3_Income(page, generatedData);
+                await step3.fillIncomeAndAssetsStep3();
+
+                // ==========================================================
+                // 💡 เรียกใช้งาน Step 4: Health Insurance
+                // ==========================================================
+                // 💡 ต้องพิมพ์ให้ตรงกับตัวแปรที่ require มาด้านบน
+                const step4 = new WgcStep4_Health_Insurance(page, generatedData); 
+                await step4.fillHealthInsuranceStep4();
+
+                // ==========================================================
+                // 💡 เรียกใช้งาน Step 5: Review and Submit
+                // ==========================================================
+                const step5 = new WgcStep5_Review(page, generatedData);
+                await step5.fillReviewStep5();
+                await page.waitForTimeout(5000); // รอ 5 วินาทีหลัง Submit เพื่อดูผล
 
                 isPassed = true; 
 
@@ -149,6 +171,7 @@ test.describe('WGC Visa Flow', () => {
             }
         });
 
-        break; // รันรอบเดียว
+        // ปลดล็อก break; ออก เพื่อให้ลูปทำงานกับทุก Record ใน CSV
+        // break; 
     }
 });

@@ -1,0 +1,10 @@
+{
+  "testName": "Register [WGC]: test01@gmail.com",
+  "email": "wgctest01_5bq@mailinator.com",
+  "visaType": "WGC",
+  "firstName": "Jerod",
+  "lastName": "Klein",
+  "status": "locator.waitFor: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('canvas').first() to be visible\u001b[22m\n",
+  "result": "FAIL",
+  "timestamp": "20/05/2026, 16:52:32"
+}

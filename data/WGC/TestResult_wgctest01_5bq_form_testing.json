@@ -2,9 +2,9 @@
   "testName": "Register [WGC]: test01@gmail.com",
   "email": "wgctest01_5bq@mailinator.com",
   "visaType": "WGC",
-  "firstName": "Maurice",
-  "lastName": "Ritchie",
-  "status": "page.waitForTimeout: Test ended.",
+  "firstName": "Duncan",
+  "lastName": "Brown",
+  "status": "locator.click: Target page, context or browser has been closed",
   "result": "FAIL",
-  "timestamp": "19/05/2026, 16:33:26"
+  "timestamp": "20/05/2026, 15:44:55"
 }

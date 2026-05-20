@@ -1,0 +1,10 @@
+{
+  "testName": "Register [WGC]: test01@gmail.com",
+  "email": "test01@gmail.com",
+  "visaType": "WGC",
+  "firstName": "Joan",
+  "lastName": "Deckow",
+  "status": "locator.isVisible: Target page, context or browser has been closed",
+  "result": "FAIL",
+  "timestamp": "20/05/2026, 15:45:49"
+}
